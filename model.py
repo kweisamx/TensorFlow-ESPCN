@@ -1,7 +1,11 @@
 import tensorflow as tf
+import time
+import os
+
 from utils import (
     input_setup,
-    checkpoint_dir
+    checkpoint_dir,
+    read_data
 )
 class SRCNN(object):
 
@@ -55,5 +59,58 @@ class SRCNN(object):
         
         # NOTE : if train, the nx, ny is ingnore, will be 0
         nx, ny = input_setup(config)
+
+        data_dir = checkpoint_dir(config)
         
+        input_, label_ = read_data(data_dir)
+
+        # Stochastic gradient descent with the standard backpropagation
+        self.train_op = tf.train.GradientDescentOptimizer(config.learning_rate).minimize(self.loss)
+        tf.initialize_all_variables().run()
+
+        counter = 0
+        time_ = time.time()
+
+        self.load(config.checkpoint_dir)
         
+        if config.is_train:
+            print("Now Start Training...")
+            for ep in range(config.epoch):
+                # Run by batch images
+                batch_idxs = len(input_) // config.batch_size
+                for idx in range(0, batch_idxs):
+                    batch_images = input_[idx * config.batch_size : (idx + 1) * config.batch_size]
+                    batch_labels = label_[idx * config.batch_size : (idx + 1) * config.batch_size]
+                    counter += 1
+                    _, err = self.sess.run([self.train_op, self.loss], feed_dict={self.images: batch_images, self.labels: batch_labels})
+                    if counter % 10 == 0:
+                        print("Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" % ((ep+1), counter, time.time()-time_, err))
+                    if counter % 500 == 0:
+                        self.save(config.checkpoint_dir, counter)
+
+
+    def load(self, checkpoint_dir):
+        """
+            To load  the checkpoint use to test or pretrain
+        """
+        print("\nReading Checkpoints.....\n\n")
+        model_dir = "%s_%s" % ("srcnn", self.label_size)# give the model name by label_size
+        checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
+        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+        
+        # Check the checkpoint is exist 
+        if ckpt and ckpt.model_checkpoint_path:
+            ckpt_path = str(ckpt.model_checkpoint_path) # convert the unicode to string
+            self.saver.restore(self.sess, os.path.join(os.getcwd(), ckpt_path))
+            print("\n Checkpoint Loading Success! %s\n\n"% ckpt_path)
+        else:
+            print("\n! Checkpoint Loading Failed \n\n")
+    def save(self, checkpoint_dir, step):
+        model_name = "SRCNN.model"
+        model_dir = "%s_%s" % ("srcnn", self.label_size)
+        checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
+        if not os.path.exists(checkpoint_dir):
+             os.makedirs(checkpoint_dir)
+        self.saver.save(self.sess,
+                        os.path.join(checkpoint_dir, model_name),
+                        global_step=step)

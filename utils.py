@@ -90,10 +90,18 @@ def make_sub_data(data, padding, config):
                     sub_input = input_[x: x + config.image_size, y: y + config.image_size] # 33 * 33
                     sub_label = label_[x + padding: x + padding + config.label_size, y + padding: y + padding + config.label_size] # 21 * 21
 
+
                     # Reshape the subinput and sublabel
                     sub_input = sub_input.reshape([config.image_size, config.image_size, config.c_dim])
                     sub_label = sub_label.reshape([config.label_size, config.label_size, config.c_dim])
 
+                    # Normialize
+                    sub_input =  sub_input / 255.0
+                    sub_label =  sub_label / 255.0
+                    #print(sub_input,sub_label)
+                    #cv2.imshow("im1",sub_input)
+                    #cv2.imshow("im2",sub_label)
+                    #cv2.waitKey(0)
                     # Add to sequence
                     sub_input_sequence.append(sub_input)
                     sub_label_sequence.append(sub_label)
@@ -104,6 +112,19 @@ def make_sub_data(data, padding, config):
     else:
         print("hello")
 
+def read_data(path):
+    """
+        Read h5 format data file
+
+        Args:
+            path: file path of desired file
+            data: '.h5' file format that contains  input values
+            label: '.h5' file format that contains label values 
+    """
+    with h5py.File(path, 'r') as hf:
+        input_ = np.array(hf.get('input'))
+        label_ = np.array(hf.get('label'))
+        return input_, label_
 
 def make_data_hf(input_, label_, config):
     """

@@ -10,6 +10,8 @@ flags.DEFINE_boolean("is_train", True, "if the train")
 flags.DEFINE_integer("scale", 3, "the size of scale factor for preprocessing input image")
 flags.DEFINE_integer("stride", 21, "the size of stride")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Name of checkpoint directory")
+flags.DEFINE_float("learning_rate", 1e-4 , "The learning rate")
+flags.DEFINE_integer("batch_size", 128, "the size of batch")
 
 
 
