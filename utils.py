@@ -31,5 +31,3 @@ def preprocess(path ,scale = 3):
     input_ = cv2.resize(bicbuic_img,None,fx = scale ,fy=scale, interpolation = cv2.INTER_CUBIC)# Resize by scaling factor
     return input_, label_
 
-
-
