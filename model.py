@@ -1,5 +1,8 @@
 import tensorflow as tf
-
+from utils import (
+    input_setup,
+    checkpoint_dir
+)
 class SRCNN(object):
 
     def __init__(self,
@@ -47,3 +50,10 @@ class SRCNN(object):
         conv2 = tf.nn.relu(tf.nn.conv2d(conv1, self.weights['w2'], strides=[1,1,1,1], padding='VALID') + self.biases['b2'])
         conv3 = tf.nn.conv2d(conv2, self.weights['w3'], strides=[1,1,1,1], padding='VALID') + self.biases['b3'] # This layer don't need ReLU
         return conv3
+
+    def train(self, config):
+        
+        # NOTE : if train, the nx, ny is ingnore, will be 0
+        nx, ny = input_setup(config)
+        
+        
