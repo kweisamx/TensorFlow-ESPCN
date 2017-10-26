@@ -12,7 +12,16 @@ def imread(path):
     img = cv2.imread(path)
     return img
 
+def imsave(image, path):
+    checkimage(image)
+    # Check the check dir, if not, create one
+    if not os.path.isdir(os.path.join(os.getcwd(),path)):
+        os.makedirs(os.path.join(os.getcwd(),path))
+    cv2.imwrite(os.path.join(os.getcwd(),path)+'/result.png',image * 255.)
 
+def checkimage(image):
+    cv2.imshow("test",image)
+    cv2.waitKey(0)
 
 def modcrop(img, scale =3):
     """
@@ -75,42 +84,46 @@ def make_sub_data(data, padding, config):
             padding : the image padding of input to label
             config : the all flags
     """
-    if config.is_train:
-        sub_input_sequence = []
-        sub_label_sequence = []
-        for i in range(len(data)):
-            input_, label_, = preprocess(data[i], config.scale) # do bicbuic
+    sub_input_sequence = []
+    sub_label_sequence = []
+    for i in range(len(data)):
+        input_, label_, = preprocess(data[i], config.scale) # do bicbuic
 
-            if len(input_.shape) == 3: # is color
-                h, w, c = input_.shape
-            else:
-                h, w = input_.shape # is grayscale
-            for x in range(0, h - config.image_size + 1, config.stride):
-                for y in range(0, w - config.image_size + 1, config.stride):
-                    sub_input = input_[x: x + config.image_size, y: y + config.image_size] # 33 * 33
-                    sub_label = label_[x + padding: x + padding + config.label_size, y + padding: y + padding + config.label_size] # 21 * 21
+        if len(input_.shape) == 3: # is color
+            h, w, c = input_.shape
+        else:
+            h, w = input_.shape # is grayscale
+
+        nx, ny = 0, 0
+        for x in range(0, h - config.image_size + 1, config.stride):
+            nx += 1; ny = 0
+            for y in range(0, w - config.image_size + 1, config.stride):
+                ny += 1
+
+                sub_input = input_[x: x + config.image_size, y: y + config.image_size] # 33 * 33
+                sub_label = label_[x + padding: x + padding + config.label_size, y + padding: y + padding + config.label_size] # 21 * 21
 
 
-                    # Reshape the subinput and sublabel
-                    sub_input = sub_input.reshape([config.image_size, config.image_size, config.c_dim])
-                    sub_label = sub_label.reshape([config.label_size, config.label_size, config.c_dim])
+                # Reshape the subinput and sublabel
+                sub_input = sub_input.reshape([config.image_size, config.image_size, config.c_dim])
+                sub_label = sub_label.reshape([config.label_size, config.label_size, config.c_dim])
+                # Normialize
+                sub_input =  sub_input / 255.0
+                sub_label =  sub_label / 255.0
+                
+                #cv2.imshow("im1",sub_input)
+                #cv2.imshow("im2",sub_label)
+                #cv2.waitKey(0)
+#                print(sub_input)
 
-                    # Normialize
-                    sub_input =  sub_input / 255.0
-                    sub_label =  sub_label / 255.0
-                    #print(sub_input,sub_label)
-                    #cv2.imshow("im1",sub_input)
-                    #cv2.imshow("im2",sub_label)
-                    #cv2.waitKey(0)
-                    # Add to sequence
-                    sub_input_sequence.append(sub_input)
-                    sub_label_sequence.append(sub_label)
+                # Add to sequence
+                sub_input_sequence.append(sub_input)
+                sub_label_sequence.append(sub_label)
 
-            
-        # NOTE: The nx, ny can be ignore, return 0
-        return sub_input_sequence, sub_label_sequence, 0, 0
-    else:
-        print("hello")
+        
+    # NOTE: The nx, ny can be ignore in train
+    return sub_input_sequence, sub_label_sequence, nx, ny
+
 
 def read_data(path):
     """
@@ -143,6 +156,21 @@ def make_data_hf(input_, label_, config):
     with h5py.File(savepath, 'w') as hf:
         hf.create_dataset('input', data=input_)
         hf.create_dataset('label', data=label_)
+def merge(images, size, c_dim):
+    """
+        images is the sub image set, merge it
+    """
+    h, w = images.shape[1], images.shape[2]
+    
+    img = np.zeros((h*size[0], w*size[1], c_dim))
+    for idx, image in enumerate(images):
+        i = idx % size[1]
+        j = idx // size[1]
+        img[j * h : j * h + h,i * w : i * w + w, :] = image
+        #cv2.imshow("srimg",img)
+        #cv2.waitKey(0)
+        
+    return img
 
 def input_setup(config):
     """

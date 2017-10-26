@@ -5,7 +5,10 @@ import os
 from utils import (
     input_setup,
     checkpoint_dir,
-    read_data
+    read_data,
+    merge,
+    checkimage,
+    imsave
 )
 class SRCNN(object):
 
@@ -19,11 +22,6 @@ class SRCNN(object):
         self.label_size = label_size
         self.c_dim = c_dim
         self.build_model()
-
-
-
-
-
 
     def build_model(self):
         self.images = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, self.c_dim], name='images')
@@ -47,8 +45,6 @@ class SRCNN(object):
 
         self.saver = tf.train.Saver() # To save checkpoint
 
-
-
     def model(self):
         conv1 = tf.nn.relu(tf.nn.conv2d(self.images, self.weights['w1'], strides=[1,1,1,1], padding='VALID') + self.biases['b1'])
         conv2 = tf.nn.relu(tf.nn.conv2d(conv1, self.weights['w2'], strides=[1,1,1,1], padding='VALID') + self.biases['b2'])
@@ -57,22 +53,23 @@ class SRCNN(object):
 
     def train(self, config):
         
-        # NOTE : if train, the nx, ny is ingnore, will be 0
+        # NOTE : if train, the nx, ny are ingnored
         nx, ny = input_setup(config)
 
         data_dir = checkpoint_dir(config)
         
         input_, label_ = read_data(data_dir)
-
+        #print(input_[1])
         # Stochastic gradient descent with the standard backpropagation
-        self.train_op = tf.train.GradientDescentOptimizer(config.learning_rate).minimize(self.loss)
+        #self.train_op = tf.train.GradientDescentOptimizer(config.learning_rate).minimize(self.loss)
+        self.train_op = tf.train.AdamOptimizer(learning_rate=config.learning_rate).minimize(self.loss)
         tf.initialize_all_variables().run()
 
         counter = 0
         time_ = time.time()
 
         self.load(config.checkpoint_dir)
-        
+        # Train
         if config.is_train:
             print("Now Start Training...")
             for ep in range(config.epoch):
@@ -82,16 +79,27 @@ class SRCNN(object):
                     batch_images = input_[idx * config.batch_size : (idx + 1) * config.batch_size]
                     batch_labels = label_[idx * config.batch_size : (idx + 1) * config.batch_size]
                     counter += 1
-                    _, err = self.sess.run([self.train_op, self.loss], feed_dict={self.images: batch_images, self.labels: batch_labels})
+                    info, err = self.sess.run([self.train_op, self.loss], feed_dict={self.images: batch_images, self.labels: batch_labels})
+
                     if counter % 10 == 0:
                         print("Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" % ((ep+1), counter, time.time()-time_, err))
+                        print(label_[1] - self.pred.eval({self.images: input_})[1],'loss:]',err)
                     if counter % 500 == 0:
                         self.save(config.checkpoint_dir, counter)
-
+        # Test
+        else:
+            print("Now Start Testing...")
+            print("nx","ny",nx,ny)
+            
+            result = self.pred.eval({self.images: input_})
+            #print(label_[1] - result[1])
+            image = merge(result, [nx, ny], self.c_dim)
+            checkimage(image)
+            imsave(image, config.result_dir)
 
     def load(self, checkpoint_dir):
         """
-            To load  the checkpoint use to test or pretrain
+            To load the checkpoint use to test or pretrain
         """
         print("\nReading Checkpoints.....\n\n")
         model_dir = "%s_%s" % ("srcnn", self.label_size)# give the model name by label_size
@@ -106,11 +114,16 @@ class SRCNN(object):
         else:
             print("\n! Checkpoint Loading Failed \n\n")
     def save(self, checkpoint_dir, step):
+        """
+            To save the checkpoint use to test or pretrain
+        """
         model_name = "SRCNN.model"
         model_dir = "%s_%s" % ("srcnn", self.label_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
+
         if not os.path.exists(checkpoint_dir):
              os.makedirs(checkpoint_dir)
+
         self.saver.save(self.sess,
                         os.path.join(checkpoint_dir, model_name),
                         global_step=step)
