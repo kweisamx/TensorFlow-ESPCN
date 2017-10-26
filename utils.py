@@ -12,12 +12,14 @@ def imread(path):
     img = cv2.imread(path)
     return img
 
-def imsave(image, path):
-    checkimage(image)
+def imsave(image, path, config):
+    #checkimage(image)
     # Check the check dir, if not, create one
-    if not os.path.isdir(os.path.join(os.getcwd(),path)):
-        os.makedirs(os.path.join(os.getcwd(),path))
-    cv2.imwrite(os.path.join(os.getcwd(),path)+'/result.png',image * 255.)
+    if not os.path.isdir(os.path.join(os.getcwd(),config.result_dir)):
+        os.makedirs(os.path.join(os.getcwd(),config.result_dir))
+
+    # NOTE: because normial, we need mutlify 255 back    
+    cv2.imwrite(os.path.join(os.getcwd(),path),image * 255.)
 
 def checkimage(image):
     cv2.imshow("test",image)
@@ -87,7 +89,10 @@ def make_sub_data(data, padding, config):
     sub_input_sequence = []
     sub_label_sequence = []
     for i in range(len(data)):
-        input_, label_, = preprocess(data[i], config.scale) # do bicbuic
+        if config.is_train:
+            input_, label_, = preprocess(data[i], config.scale) # do bicbuic
+        else: # Test just one picture
+            input_, label_, = preprocess(data[i], config.scale) # do bicbuic
 
         if len(input_.shape) == 3: # is color
             h, w, c = input_.shape
@@ -114,7 +119,6 @@ def make_sub_data(data, padding, config):
                 #cv2.imshow("im1",sub_input)
                 #cv2.imshow("im2",sub_label)
                 #cv2.waitKey(0)
-#                print(sub_input)
 
                 # Add to sequence
                 sub_input_sequence.append(sub_input)
@@ -156,6 +160,7 @@ def make_data_hf(input_, label_, config):
     with h5py.File(savepath, 'w') as hf:
         hf.create_dataset('input', data=input_)
         hf.create_dataset('label', data=label_)
+
 def merge(images, size, c_dim):
     """
         images is the sub image set, merge it

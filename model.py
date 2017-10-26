@@ -59,7 +59,6 @@ class SRCNN(object):
         data_dir = checkpoint_dir(config)
         
         input_, label_ = read_data(data_dir)
-        #print(input_[1])
         # Stochastic gradient descent with the standard backpropagation
         #self.train_op = tf.train.GradientDescentOptimizer(config.learning_rate).minimize(self.loss)
         self.train_op = tf.train.AdamOptimizer(learning_rate=config.learning_rate).minimize(self.loss)
@@ -79,11 +78,11 @@ class SRCNN(object):
                     batch_images = input_[idx * config.batch_size : (idx + 1) * config.batch_size]
                     batch_labels = label_[idx * config.batch_size : (idx + 1) * config.batch_size]
                     counter += 1
-                    info, err = self.sess.run([self.train_op, self.loss], feed_dict={self.images: batch_images, self.labels: batch_labels})
+                    _, err = self.sess.run([self.train_op, self.loss], feed_dict={self.images: batch_images, self.labels: batch_labels})
 
                     if counter % 10 == 0:
                         print("Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" % ((ep+1), counter, time.time()-time_, err))
-                        print(label_[1] - self.pred.eval({self.images: input_})[1],'loss:]',err)
+                        #print(label_[1] - self.pred.eval({self.images: input_})[1],'loss:]',err)
                     if counter % 500 == 0:
                         self.save(config.checkpoint_dir, counter)
         # Test
@@ -94,8 +93,9 @@ class SRCNN(object):
             result = self.pred.eval({self.images: input_})
             #print(label_[1] - result[1])
             image = merge(result, [nx, ny], self.c_dim)
-            checkimage(image)
-            imsave(image, config.result_dir)
+            #image_LR = merge(input_, [nx, ny], self.c_dim)
+            #checkimage(image_LR)
+            imsave(image, config.result_dir+'/result.png', config)
 
     def load(self, checkpoint_dir):
         """
