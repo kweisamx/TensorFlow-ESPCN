@@ -57,7 +57,7 @@ def preprocess(path ,scale = 3):
     input_ = cv2.resize(bicbuic_img,None,fx = scale ,fy=scale, interpolation = cv2.INTER_CUBIC)# Resize by scaling factor
     return input_, label_
 
-def prepare_data(dataset="Train"):
+def prepare_data(dataset="Train",Input_img=""):
     """
         Args:
             dataset: choose train dataset or test dataset
@@ -67,14 +67,20 @@ def prepare_data(dataset="Train"):
         data_dir = os.path.join(os.getcwd(), dataset) # Join the Train dir to current directory
         data = glob.glob(os.path.join(data_dir, "*.bmp")) # make set of all dataset file path
     else:
-        data_dir = os.path.join(os.path.join(os.getcwd(), dataset), "Set5")
-        data = glob.glob(os.path.join(data_dir, "*.bmp")) # make set of all dataset file path
+        if Input_img !="":
+            data = [os.path.join(os.getcwd(),Input_img)]
+        else:
+            data_dir = os.path.join(os.path.join(os.getcwd(), dataset), "Set5")
+            data = glob.glob(os.path.join(data_dir, "*.bmp")) # make set of all dataset file path
+    print(data)
     return data
 
-def load_data(is_train):
+def load_data(is_train, test_img):
     if is_train:
         data = prepare_data(dataset="Train")
     else:
+        if test_img != "":
+            return prepare_data(dataset="Test",Input_img=test_img)
         data = prepare_data(dataset="Test")
     return data
 
@@ -93,12 +99,12 @@ def make_sub_data(data, padding, config):
             input_, label_, = preprocess(data[i], config.scale) # do bicbuic
         else: # Test just one picture
             input_, label_, = preprocess(data[i], config.scale) # do bicbuic
-
+        
         if len(input_.shape) == 3: # is color
             h, w, c = input_.shape
         else:
             h, w = input_.shape # is grayscale
-
+        #checkimage(input_)
         nx, ny = 0, 0
         for x in range(0, h - config.image_size + 1, config.stride):
             nx += 1; ny = 0
@@ -183,7 +189,7 @@ def input_setup(config):
     """
 
     # Load data path, if is_train False, get test data
-    data = load_data(config.is_train)
+    data = load_data(config.is_train, config.test_img)
 
     padding = abs(config.image_size - config.label_size) / 2 
 

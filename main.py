@@ -13,6 +13,7 @@ flags.DEFINE_string("checkpoint_dir", "checkpoint", "Name of checkpoint director
 flags.DEFINE_float("learning_rate", 1e-4 , "The learning rate")
 flags.DEFINE_integer("batch_size", 128, "the size of batch")
 flags.DEFINE_string("result_dir", "result", "Name of result directory")
+flags.DEFINE_string("test_img", "", "test_img")
 
 
 

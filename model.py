@@ -88,7 +88,7 @@ class SRCNN(object):
         # Test
         else:
             print("Now Start Testing...")
-            print("nx","ny",nx,ny)
+            #print("nx","ny",nx,ny)
             
             result = self.pred.eval({self.images: input_})
             #print(label_[1] - result[1])
