@@ -28,6 +28,7 @@ class ESPCN(object):
 
     def build_model(self):
         self.images = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, self.c_dim], name='images')
+        self.images_test = tf.placeholder(tf.float32,[None])
         self.labels = tf.placeholder(tf.float32, [None, self.image_size * self.scale , self.image_size * self.scale, self.c_dim], name='labels')
         
         self.weights = {
@@ -62,10 +63,9 @@ class ESPCN(object):
     def _phase_shift(self, I, r):
         # Helper function with main phase shift operation
         bsize, a, b, c = I.get_shape().as_list()
-        print(I.get_shape().as_list(),a,b,c)
-        X = tf.reshape(I, ( a, b, r, r))
+        X = tf.reshape(I, (1, a, b, r, r))
         print(X)
-        X = tf.split(X, a, 0)  # a, [bsize, b, r, r]
+        X = tf.split(X, a, 1)  # a, [bsize, b, r, r]
         print(X)
         X = tf.concat([tf.squeeze(x) for x in X], 1)  # bsize, b, a*r, r
         print(X)
@@ -117,14 +117,15 @@ class ESPCN(object):
         # Test
         else:
             print("Now Start Testing...")
-            
-            result = self.pred.eval({self.images: input_})
-            #print(label_[1] - result[1])
-            checkimage(result[1])
-            #image = merge(result, [nx, ny], self.c_dim)
+            input_test = input_[15].reshape(1,17,17,3)
+            result = self.pred.eval({self.images_test: input_test})
+            x = np.squeeze(result)
+            print(x.shape)
+            checkimage(input_[15])
+            checkimage(x)
+            checkimage(label_[15])
             #image_LR = merge(input_, [nx, ny], self.c_dim)
-            #checkimage(image_LR)
-            imsave(image, config.result_dir+'/result.png', config)
+            #imsave(image, config.result_dir+'/result.png', config)
 
     def load(self, checkpoint_dir):
         """

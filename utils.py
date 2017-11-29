@@ -143,8 +143,6 @@ def make_sub_data(data, config):
                 sub_label_sequence.append(sub_label)
 
     # NOTE: The nx, ny can be ignore in train
-    checkimage(sub_input_sequence[256])
-    checkimage(sub_label_sequence[256])
 
     return sub_input_sequence, sub_label_sequence, nx, ny
 
