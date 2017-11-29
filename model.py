@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 import time
 import os
 
@@ -10,33 +11,35 @@ from utils import (
     checkimage,
     imsave
 )
-class SRCNN(object):
+class ESPCN(object):
 
     def __init__(self,
                  sess,
                  image_size,
-                 label_size,
+#                 label_size,
+                 scale,
                  c_dim):
         self.sess = sess
         self.image_size = image_size
-        self.label_size = label_size
+#        self.label_size = label_size
         self.c_dim = c_dim
+        self.scale = scale
         self.build_model()
 
     def build_model(self):
         self.images = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, self.c_dim], name='images')
-        self.labels = tf.placeholder(tf.float32, [None, self.label_size, self.label_size, self.c_dim], name='labels')
+        self.labels = tf.placeholder(tf.float32, [None, self.image_size * self.scale , self.image_size * self.scale, self.c_dim], name='labels')
         
         self.weights = {
-            'w1': tf.Variable(tf.random_normal([9, 9, self.c_dim, 64], stddev=1e-3), name='w1'),
-            'w2': tf.Variable(tf.random_normal([1, 1, 64, 32], stddev=1e-3), name='w2'),
-            'w3': tf.Variable(tf.random_normal([5, 5, 32, self.c_dim], stddev=1e-3), name='w3')
+            'w1': tf.Variable(tf.random_normal([5, 5, self.c_dim, 64], stddev=1e-3), name='w1'),
+            'w2': tf.Variable(tf.random_normal([3, 3, 64, 32], stddev=1e-3), name='w2'),
+            'w3': tf.Variable(tf.random_normal([3, 3, 32, self.c_dim * self.scale * self.scale ], stddev=1e-3), name='w3')
         }
 
         self.biases = {
             'b1': tf.Variable(tf.zeros([64], name='b1')),
             'b2': tf.Variable(tf.zeros([32], name='b2')),
-            'b3': tf.Variable(tf.zeros([self.c_dim], name='b3'))
+            'b3': tf.Variable(tf.zeros([self.c_dim * self.scale * self.scale ], name='b3'))
         }
         
         self.pred = self.model()
@@ -46,10 +49,37 @@ class SRCNN(object):
         self.saver = tf.train.Saver() # To save checkpoint
 
     def model(self):
-        conv1 = tf.nn.relu(tf.nn.conv2d(self.images, self.weights['w1'], strides=[1,1,1,1], padding='VALID') + self.biases['b1'])
-        conv2 = tf.nn.relu(tf.nn.conv2d(conv1, self.weights['w2'], strides=[1,1,1,1], padding='VALID') + self.biases['b2'])
-        conv3 = tf.nn.conv2d(conv2, self.weights['w3'], strides=[1,1,1,1], padding='VALID') + self.biases['b3'] # This layer don't need ReLU
-        return conv3
+        conv1 = tf.nn.relu(tf.nn.conv2d(self.images, self.weights['w1'], strides=[1,1,1,1], padding='SAME') + self.biases['b1'])
+        print(conv1)
+        conv2 = tf.nn.relu(tf.nn.conv2d(conv1, self.weights['w2'], strides=[1,1,1,1], padding='SAME') + self.biases['b2'])
+        print(conv2)
+        conv3 = tf.nn.conv2d(conv2, self.weights['w3'], strides=[1,1,1,1], padding='SAME') + self.biases['b3'] # This layer don't need ReLU
+        print(conv3)
+
+        ps = self.PS(conv3, self.scale)
+        return tf.nn.tanh(ps)
+
+    def _phase_shift(self, I, r):
+        # Helper function with main phase shift operation
+        bsize, a, b, c = I.get_shape().as_list()
+        print(I.get_shape().as_list(),a,b,c)
+        X = tf.reshape(I, ( a, b, r, r))
+        print(X)
+        X = tf.split(X, a, 0)  # a, [bsize, b, r, r]
+        print(X)
+        X = tf.concat([tf.squeeze(x) for x in X], 1)  # bsize, b, a*r, r
+        print(X)
+        X = tf.split(X, b, 0)  # b, [bsize, a*r, r]
+        print(X)
+        X = tf.concat([tf.squeeze(x) for x in X], 1)  # bsize, a*r, b*r
+        print(X)
+        return tf.reshape(X, (1, a*r, b*r, 1))
+
+    def PS(self, X, r):
+        # Main OP that you can arbitrarily use in you tensorflow code
+        Xc = tf.split(X, 3, 3)
+        X = tf.concat([self._phase_shift(x, r) for x in Xc], 3) # Do the concat RGB
+        return X
 
     def train(self, config):
         
@@ -60,7 +90,6 @@ class SRCNN(object):
         
         input_, label_ = read_data(data_dir)
         # Stochastic gradient descent with the standard backpropagation
-        #self.train_op = tf.train.GradientDescentOptimizer(config.learning_rate).minimize(self.loss)
         self.train_op = tf.train.AdamOptimizer(learning_rate=config.learning_rate).minimize(self.loss)
         tf.initialize_all_variables().run()
 
@@ -88,11 +117,11 @@ class SRCNN(object):
         # Test
         else:
             print("Now Start Testing...")
-            #print("nx","ny",nx,ny)
             
             result = self.pred.eval({self.images: input_})
             #print(label_[1] - result[1])
-            image = merge(result, [nx, ny], self.c_dim)
+            checkimage(result[1])
+            #image = merge(result, [nx, ny], self.c_dim)
             #image_LR = merge(input_, [nx, ny], self.c_dim)
             #checkimage(image_LR)
             imsave(image, config.result_dir+'/result.png', config)
@@ -102,7 +131,7 @@ class SRCNN(object):
             To load the checkpoint use to test or pretrain
         """
         print("\nReading Checkpoints.....\n\n")
-        model_dir = "%s_%s" % ("srcnn", self.label_size)# give the model name by label_size
+        model_dir = "%s_%s" % ("srcnn", self.image_size)# give the model name by label_size
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
         
@@ -118,7 +147,7 @@ class SRCNN(object):
             To save the checkpoint use to test or pretrain
         """
         model_name = "SRCNN.model"
-        model_dir = "%s_%s" % ("srcnn", self.label_size)
+        model_dir = "%s_%s" % ("srcnn", self.image_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         if not os.path.exists(checkpoint_dir):

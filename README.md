@@ -1,4 +1,4 @@
-# Implement SRCNN with Tensorflow
+# Implement ESCPN with Tensorflow
 
 ## Dependency
 pip
@@ -50,22 +50,10 @@ python main.py --is_train False --test_img Train/t20.bmp
 then result image also put in the result directory
 
 ## Result 
-* Origin
-
-    ![Imgur](https://i.imgur.com/hhXBTfC.png)
-        
-            
-* Bicbuic 
-
-    ![Imgur](https://i.imgur.com/7UAzDf6.png)
-    
-* Result
-
-    ![Imgur](https://i.imgur.com/bxotNK8.png)
     
     
     
     
 ## References
 
-    [tegg89/SRCNN-Tensorflow](https://github.com/tegg89/SRCNN-Tensorflow)
+   [kweisamx/SRCNN-Tensorflow](https://github.com/kweisamx/TensorFlow-SRCNN)

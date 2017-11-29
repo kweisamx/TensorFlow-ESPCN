@@ -49,12 +49,16 @@ def checkpoint_dir(config):
         return os.path.join('./{}'.format(config.checkpoint_dir), "test.h5")
 
 def preprocess(path ,scale = 3):
+    """
+        Args:
+            path: the image directory path
+            scale: the image need to scale 
+    """
     img = imread(path)
 
     label_ = modcrop(img, scale)
     
-    bicbuic_img = cv2.resize(label_,None,fx = 1.0/scale ,fy = 1.0/scale, interpolation = cv2.INTER_CUBIC)# Resize by scaling factor
-    input_ = cv2.resize(bicbuic_img,None,fx = scale ,fy=scale, interpolation = cv2.INTER_CUBIC)# Resize by scaling factor
+    input_ = cv2.resize(label_,None,fx = 1.0/scale ,fy = 1.0/scale, interpolation = cv2.INTER_CUBIC) # Resize by scaling factor
     return input_, label_
 
 def prepare_data(dataset="Train",Input_img=""):
@@ -84,12 +88,11 @@ def load_data(is_train, test_img):
         data = prepare_data(dataset="Test")
     return data
 
-def make_sub_data(data, padding, config):
+def make_sub_data(data, config):
     """
         Make the sub_data set
         Args:
             data : the set of all file path 
-            padding : the image padding of input to label
             config : the all flags
     """
     sub_input_sequence = []
@@ -105,33 +108,44 @@ def make_sub_data(data, padding, config):
         else:
             h, w = input_.shape # is grayscale
         #checkimage(input_)
+        #checkimage(label_)
+
+        # NOTE: make subimage of LR and HR
+
+        # Input 
         nx, ny = 0, 0
         for x in range(0, h - config.image_size + 1, config.stride):
             nx += 1; ny = 0
             for y in range(0, w - config.image_size + 1, config.stride):
                 ny += 1
 
-                sub_input = input_[x: x + config.image_size, y: y + config.image_size] # 33 * 33
-                sub_label = label_[x + padding: x + padding + config.label_size, y + padding: y + padding + config.label_size] # 21 * 21
+                sub_input = input_[x: x + config.image_size, y: y + config.image_size] # 17 * 17
 
 
                 # Reshape the subinput and sublabel
                 sub_input = sub_input.reshape([config.image_size, config.image_size, config.c_dim])
-                sub_label = sub_label.reshape([config.label_size, config.label_size, config.c_dim])
                 # Normialize
                 sub_input =  sub_input / 255.0
-                sub_label =  sub_label / 255.0
-                
-                #cv2.imshow("im1",sub_input)
-                #cv2.imshow("im2",sub_label)
-                #cv2.waitKey(0)
 
                 # Add to sequence
                 sub_input_sequence.append(sub_input)
+
+        # Label (the time of scale)
+        for x in range(0, h * config.scale - config.image_size * config.scale + 1, config.stride * config.scale):
+            for y in range(0, w * config.scale - config.image_size * config.scale + 1, config.stride * config.scale):
+                sub_label = label_[x: x + config.image_size * config.scale, y: y + config.image_size * config.scale] # 17r * 17r
+                
+                # Reshape the subinput and sublabel
+                sub_label = sub_label.reshape([config.image_size * config.scale , config.image_size * config.scale, config.c_dim])
+                # Normialize
+                sub_label =  sub_label / 255.0
+                # Add to sequence
                 sub_label_sequence.append(sub_label)
 
-        
     # NOTE: The nx, ny can be ignore in train
+    checkimage(sub_input_sequence[256])
+    checkimage(sub_label_sequence[256])
+
     return sub_input_sequence, sub_label_sequence, nx, ny
 
 
@@ -178,8 +192,6 @@ def merge(images, size, c_dim):
         i = idx % size[1]
         j = idx // size[1]
         img[j * h : j * h + h,i * w : i * w + w, :] = image
-        #cv2.imshow("srimg",img)
-        #cv2.waitKey(0)
         
     return img
 
@@ -191,17 +203,18 @@ def input_setup(config):
     # Load data path, if is_train False, get test data
     data = load_data(config.is_train, config.test_img)
 
-    padding = abs(config.image_size - config.label_size) / 2 
 
     # Make sub_input and sub_label, if is_train false more return nx, ny
-    sub_input_sequence, sub_label_sequence, nx, ny = make_sub_data(data, padding, config)
+    sub_input_sequence, sub_label_sequence, nx, ny = make_sub_data(data, config)
 
 
     # Make list to numpy array. With this transform
-    arrinput = np.asarray(sub_input_sequence) # [?, 33, 33, 1]
-    arrlabel = np.asarray(sub_label_sequence) # [?, 21, 21, 1]
-
+    arrinput = np.asarray(sub_input_sequence) # [?, 17, 17, 3]
+    arrlabel = np.asarray(sub_label_sequence) # [?, 17 * scale , 17 * scale, 3]
+    
+    print(arrinput.shape, arrlabel.shape)
     make_data_hf(arrinput, arrlabel, config)
 
     return nx, ny
+
 
