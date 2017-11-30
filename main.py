@@ -19,13 +19,13 @@ flags.DEFINE_string("test_img", "", "test_img")
 
 def main(_): #?
     with tf.Session() as sess:
-        srcnn = ESPCN(sess,
+        espcn = ESPCN(sess,
                       image_size = FLAGS.image_size,
  #                     label_size = FLAGS.label_size,
                       scale = FLAGS.scale,
                       c_dim = FLAGS.c_dim)
 
-        srcnn.train(FLAGS)
+        espcn.train(FLAGS)
 
 if __name__=='__main__':
     tf.app.run() # parse the command argument , the call the main function
