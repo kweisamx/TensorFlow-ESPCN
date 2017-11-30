@@ -28,13 +28,12 @@ class ESPCN(object):
 
     def build_model(self):
         self.images = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, self.c_dim], name='images')
-        self.images_test = tf.placeholder(tf.float32,[None])
         self.labels = tf.placeholder(tf.float32, [None, self.image_size * self.scale , self.image_size * self.scale, self.c_dim], name='labels')
         
         self.weights = {
-            'w1': tf.Variable(tf.random_normal([5, 5, self.c_dim, 64], stddev=1e-3), name='w1'),
-            'w2': tf.Variable(tf.random_normal([3, 3, 64, 32], stddev=1e-3), name='w2'),
-            'w3': tf.Variable(tf.random_normal([3, 3, 32, self.c_dim * self.scale * self.scale ], stddev=1e-3), name='w3')
+            'w1': tf.Variable(tf.random_normal([5, 5, self.c_dim, 64], stddev=np.sqrt(2.0/25/3)), name='w1'),
+            'w2': tf.Variable(tf.random_normal([3, 3, 64, 32], stddev=np.sqrt(2.0/9/64)), name='w2'),
+            'w3': tf.Variable(tf.random_normal([3, 3, 32, self.c_dim * self.scale * self.scale ], stddev=np.sqrt(2.0/9/32)), name='w3')
         }
 
         self.biases = {
@@ -117,15 +116,19 @@ class ESPCN(object):
         # Test
         else:
             print("Now Start Testing...")
-            input_test = input_[15].reshape(1,17,17,3)
-            result = self.pred.eval({self.images_test: input_test})
-            x = np.squeeze(result)
-            print(x.shape)
-            checkimage(input_[15])
-            checkimage(x)
-            checkimage(label_[15])
-            #image_LR = merge(input_, [nx, ny], self.c_dim)
-            #imsave(image, config.result_dir+'/result.png', config)
+
+            image=[]
+            for i in range(input_.shape[0]):
+                input_test = input_[i].reshape(1,17,17,3)
+                result = self.pred.eval({self.images: input_test})
+                x = np.squeeze(result)
+                print(x.shape,nx,ny)
+                image.append(x)
+
+            image = np.asarray(image)
+            image = merge(image, [nx, ny], self.c_dim)
+            #checkimage(image)
+            imsave(image, config.result_dir+'/result.png', config)
 
     def load(self, checkpoint_dir):
         """
