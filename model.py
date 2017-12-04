@@ -17,18 +17,24 @@ class ESPCN(object):
                  sess,
                  image_size,
 #                 label_size,
+                 is_train,
                  scale,
                  c_dim):
         self.sess = sess
         self.image_size = image_size
 #        self.label_size = label_size
+        self.is_train = is_train
         self.c_dim = c_dim
         self.scale = scale
         self.build_model()
 
     def build_model(self):
-        self.images = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, self.c_dim], name='images')
-        self.labels = tf.placeholder(tf.float32, [None, self.image_size * self.scale , self.image_size * self.scale, self.c_dim], name='labels')
+        if self.is_train:
+            self.images = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, self.c_dim], name='images')
+            self.labels = tf.placeholder(tf.float32, [None, self.image_size * self.scale , self.image_size * self.scale, self.c_dim], name='labels')
+        else:
+            self.images = tf.placeholder(tf.float32, [None, 85, 85, self.c_dim], name='images')
+            self.labels = tf.placeholder(tf.float32, [None, 85*3, 85*3, self.c_dim], name='labels')
         
         self.weights = {
             'w1': tf.Variable(tf.random_normal([5, 5, self.c_dim, 64], stddev=np.sqrt(2.0/25/3)), name='w1'),
@@ -83,11 +89,12 @@ class ESPCN(object):
     def train(self, config):
         
         # NOTE : if train, the nx, ny are ingnored
-        nx, ny = input_setup(config)
+        input_setup(config)
 
         data_dir = checkpoint_dir(config)
         
         input_, label_ = read_data(data_dir)
+
         # Stochastic gradient descent with the standard backpropagation
         self.train_op = tf.train.AdamOptimizer(learning_rate=config.learning_rate).minimize(self.loss)
         tf.initialize_all_variables().run()
@@ -116,12 +123,21 @@ class ESPCN(object):
         # Test
         else:
             print("Now Start Testing...")
-
+            checkimage(input_[0])
+            imsave(input_[0], config.result_dir+'/bic.png', config)
+            result = self.pred.eval({self.images: input_[0].reshape(1, 85, 85, 3)})
+            print(result.shape)
+            x = np.squeeze(result)
+            checkimage(x)
+            imsave(x, config.result_dir+'/result.png', config)
+            '''
             image=[]
             for i in range(input_.shape[0]):
                 input_test = input_[i].reshape(1,17,17,3)
+                #checkimage(input_[i])
                 result = self.pred.eval({self.images: input_test})
                 x = np.squeeze(result)
+                checkimage(x)
                 print(x.shape,nx,ny)
                 image.append(x)
 
@@ -129,7 +145,7 @@ class ESPCN(object):
             image = merge(image, [nx, ny], self.c_dim)
             #checkimage(image)
             imsave(image, config.result_dir+'/result.png', config)
-
+            '''
     def load(self, checkpoint_dir):
         """
             To load the checkpoint use to test or pretrain

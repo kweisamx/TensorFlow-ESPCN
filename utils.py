@@ -98,10 +98,9 @@ def make_sub_data(data, config):
     sub_input_sequence = []
     sub_label_sequence = []
     for i in range(len(data)):
-        if config.is_train:
-            input_, label_, = preprocess(data[i], config.scale) # do bicbuic
-        else: # Test just one picture
-            input_, label_, = preprocess(data[i], config.scale) # do bicbuic
+        input_, label_, = preprocess(data[i], config.scale) # do bicbuic
+        #else: # Test just one picture
+        #    input_, label_, = preprocess(data[i], config.scale) # do bicbuic
         
         if len(input_.shape) == 3: # is color
             h, w, c = input_.shape
@@ -109,15 +108,17 @@ def make_sub_data(data, config):
             h, w = input_.shape # is grayscale
         #checkimage(input_)
         #checkimage(label_)
+        
+        if not config.is_train:
+            input_ = input_ / 255.0
+            sub_input_sequence.append(input_)
+            return sub_input_sequence, sub_label_sequence
 
         # NOTE: make subimage of LR and HR
 
         # Input 
-        nx, ny = 0, 0
         for x in range(0, h - config.image_size + 1, config.stride):
-            nx += 1; ny = 0
             for y in range(0, w - config.image_size + 1, config.stride):
-                ny += 1
 
                 sub_input = input_[x: x + config.image_size, y: y + config.image_size] # 17 * 17
 
@@ -144,7 +145,7 @@ def make_sub_data(data, config):
 
     # NOTE: The nx, ny can be ignore in train
 
-    return sub_input_sequence, sub_label_sequence, nx, ny
+    return sub_input_sequence, sub_label_sequence
 
 
 def read_data(path):
@@ -203,7 +204,7 @@ def input_setup(config):
 
 
     # Make sub_input and sub_label, if is_train false more return nx, ny
-    sub_input_sequence, sub_label_sequence, nx, ny = make_sub_data(data, config)
+    sub_input_sequence, sub_label_sequence = make_sub_data(data, config)
 
 
     # Make list to numpy array. With this transform
@@ -212,7 +213,4 @@ def input_setup(config):
     
     print(arrinput.shape, arrlabel.shape)
     make_data_hf(arrinput, arrlabel, config)
-
-    return nx, ny
-
 

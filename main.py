@@ -10,7 +10,7 @@ flags.DEFINE_boolean("is_train", True, "if the train")
 flags.DEFINE_integer("scale", 3, "the size of scale factor for preprocessing input image")
 flags.DEFINE_integer("stride", 14, "the size of stride")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Name of checkpoint directory")
-flags.DEFINE_float("learning_rate", 1e-4 , "The learning rate")
+flags.DEFINE_float("learning_rate", 1e-5 , "The learning rate")
 flags.DEFINE_integer("batch_size", 1, "the size of batch")
 flags.DEFINE_string("result_dir", "result", "Name of result directory")
 flags.DEFINE_string("test_img", "", "test_img")
@@ -22,6 +22,7 @@ def main(_): #?
         espcn = ESPCN(sess,
                       image_size = FLAGS.image_size,
  #                     label_size = FLAGS.label_size,
+                      is_train = FLAGS.is_train,
                       scale = FLAGS.scale,
                       c_dim = FLAGS.c_dim)
 
