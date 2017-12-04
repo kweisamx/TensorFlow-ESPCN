@@ -16,16 +16,18 @@ class ESPCN(object):
     def __init__(self,
                  sess,
                  image_size,
-#                 label_size,
                  is_train,
                  scale,
+                 batch_size,
                  c_dim):
+
         self.sess = sess
         self.image_size = image_size
-#        self.label_size = label_size
         self.is_train = is_train
         self.c_dim = c_dim
         self.scale = scale
+        self.batch_size = batch_size
+
         self.build_model()
 
     def build_model(self):
@@ -64,26 +66,40 @@ class ESPCN(object):
 
         ps = self.PS(conv3, self.scale)
         return tf.nn.tanh(ps)
+    #NOTE: train with batch size 
 
     def _phase_shift(self, I, r):
         # Helper function with main phase shift operation
         bsize, a, b, c = I.get_shape().as_list()
-        X = tf.reshape(I, (1, a, b, r, r))
+        X = tf.reshape(I, (self.batch_size, a, b, r, r))
         print(X)
         X = tf.split(X, a, 1)  # a, [bsize, b, r, r]
         print(X)
+        X = tf.concat([tf.squeeze(x) for x in X], 2)  # bsize, b, a*r, r
+        print(X)
+        X = tf.split(X, b, 1)  # b, [bsize, a*r, r]
+        print(X)
+        X = tf.concat([tf.squeeze(x) for x in X], 2)  # bsize, a*r, b*r
+        print(X)
+        return tf.reshape(X, (self.batch_size, a*r, b*r, 1))
+
+    def _phase_shift_test(self, I ,r):
+        bsize, a, b, c = I.get_shape().as_list()
+        X = tf.reshape(I, (1, a, b, r, r))
+        X = tf.split(X, a, 1)  # a, [bsize, b, r, r]
         X = tf.concat([tf.squeeze(x) for x in X], 1)  # bsize, b, a*r, r
-        print(X)
         X = tf.split(X, b, 0)  # b, [bsize, a*r, r]
-        print(X)
         X = tf.concat([tf.squeeze(x) for x in X], 1)  # bsize, a*r, b*r
-        print(X)
         return tf.reshape(X, (1, a*r, b*r, 1))
+        
 
     def PS(self, X, r):
         # Main OP that you can arbitrarily use in you tensorflow code
         Xc = tf.split(X, 3, 3)
-        X = tf.concat([self._phase_shift(x, r) for x in Xc], 3) # Do the concat RGB
+        if self.is_train:
+            X = tf.concat([self._phase_shift(x, r) for x in Xc], 3) # Do the concat RGB
+        else:
+            X = tf.concat([self._phase_shift_test(x, r) for x in Xc], 3) # Do the concat RGB
         return X
 
     def train(self, config):
@@ -123,10 +139,8 @@ class ESPCN(object):
         # Test
         else:
             print("Now Start Testing...")
-            checkimage(input_[0])
             imsave(input_[0], config.result_dir+'/bic.png', config)
             result = self.pred.eval({self.images: input_[0].reshape(1, 85, 85, 3)})
-            print(result.shape)
             x = np.squeeze(result)
             checkimage(x)
             imsave(x, config.result_dir+'/result.png', config)
