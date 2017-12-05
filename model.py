@@ -7,9 +7,10 @@ from utils import (
     input_setup,
     checkpoint_dir,
     read_data,
-    merge,
     checkimage,
-    imsave
+    imsave,
+    load_data,
+    preprocess,
 )
 class ESPCN(object):
 
@@ -19,7 +20,9 @@ class ESPCN(object):
                  is_train,
                  scale,
                  batch_size,
-                 c_dim):
+                 c_dim,
+                 test_img,
+                 ):
 
         self.sess = sess
         self.image_size = image_size
@@ -27,16 +30,24 @@ class ESPCN(object):
         self.c_dim = c_dim
         self.scale = scale
         self.batch_size = batch_size
-
+        self.test_img = test_img
         self.build_model()
 
     def build_model(self):
+
         if self.is_train:
             self.images = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, self.c_dim], name='images')
             self.labels = tf.placeholder(tf.float32, [None, self.image_size * self.scale , self.image_size * self.scale, self.c_dim], name='labels')
         else:
-            self.images = tf.placeholder(tf.float32, [None, 85, 85, self.c_dim], name='images')
-            self.labels = tf.placeholder(tf.float32, [None, 85*3, 85*3, self.c_dim], name='labels')
+            '''
+                Because the test need to put image to model,
+                so here we don't need do preprocess, so we set input as the same with preprocess output
+            '''
+            data = load_data(self.is_train, self.test_img)
+            _ , input_ = preprocess(data[0])       
+            self.h, self.w, c = input_.shape
+            self.images = tf.placeholder(tf.float32, [None, self.h, self.w, self.c_dim], name='images')
+            self.labels = tf.placeholder(tf.float32, [None, self.h * self.scale, self.w * self.scale, self.c_dim], name='labels')
         
         self.weights = {
             'w1': tf.Variable(tf.random_normal([5, 5, self.c_dim, 64], stddev=np.sqrt(2.0/25/3)), name='w1'),
@@ -58,31 +69,24 @@ class ESPCN(object):
 
     def model(self):
         conv1 = tf.nn.relu(tf.nn.conv2d(self.images, self.weights['w1'], strides=[1,1,1,1], padding='SAME') + self.biases['b1'])
-        print(conv1)
         conv2 = tf.nn.relu(tf.nn.conv2d(conv1, self.weights['w2'], strides=[1,1,1,1], padding='SAME') + self.biases['b2'])
-        print(conv2)
         conv3 = tf.nn.conv2d(conv2, self.weights['w3'], strides=[1,1,1,1], padding='SAME') + self.biases['b3'] # This layer don't need ReLU
-        print(conv3)
 
         ps = self.PS(conv3, self.scale)
         return tf.nn.tanh(ps)
-    #NOTE: train with batch size 
 
+    #NOTE: train with batch size 
     def _phase_shift(self, I, r):
         # Helper function with main phase shift operation
         bsize, a, b, c = I.get_shape().as_list()
         X = tf.reshape(I, (self.batch_size, a, b, r, r))
-        print(X)
         X = tf.split(X, a, 1)  # a, [bsize, b, r, r]
-        print(X)
         X = tf.concat([tf.squeeze(x) for x in X], 2)  # bsize, b, a*r, r
-        print(X)
         X = tf.split(X, b, 1)  # b, [bsize, a*r, r]
-        print(X)
         X = tf.concat([tf.squeeze(x) for x in X], 2)  # bsize, a*r, b*r
-        print(X)
         return tf.reshape(X, (self.batch_size, a*r, b*r, 1))
 
+    # NOTE:test without batchsize
     def _phase_shift_test(self, I ,r):
         bsize, a, b, c = I.get_shape().as_list()
         X = tf.reshape(I, (1, a, b, r, r))
@@ -139,27 +143,11 @@ class ESPCN(object):
         # Test
         else:
             print("Now Start Testing...")
-            imsave(input_[0], config.result_dir+'/bic.png', config)
-            result = self.pred.eval({self.images: input_[0].reshape(1, 85, 85, 3)})
+            result = self.pred.eval({self.images: input_[0].reshape(1, self.h, self.w, self.c_dim)})
             x = np.squeeze(result)
             checkimage(x)
+            print(x.shape)
             imsave(x, config.result_dir+'/result.png', config)
-            '''
-            image=[]
-            for i in range(input_.shape[0]):
-                input_test = input_[i].reshape(1,17,17,3)
-                #checkimage(input_[i])
-                result = self.pred.eval({self.images: input_test})
-                x = np.squeeze(result)
-                checkimage(x)
-                print(x.shape,nx,ny)
-                image.append(x)
-
-            image = np.asarray(image)
-            image = merge(image, [nx, ny], self.c_dim)
-            #checkimage(image)
-            imsave(image, config.result_dir+'/result.png', config)
-            '''
     def load(self, checkpoint_dir):
         """
             To load the checkpoint use to test or pretrain

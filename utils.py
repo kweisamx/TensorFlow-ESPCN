@@ -99,19 +99,14 @@ def make_sub_data(data, config):
     sub_label_sequence = []
     for i in range(len(data)):
         input_, label_, = preprocess(data[i], config.scale) # do bicbuic
-        #else: # Test just one picture
-        #    input_, label_, = preprocess(data[i], config.scale) # do bicbuic
-        
         if len(input_.shape) == 3: # is color
             h, w, c = input_.shape
         else:
             h, w = input_.shape # is grayscale
-        #checkimage(input_)
-        #checkimage(label_)
         
         if not config.is_train:
-            input_ = input_ / 255.0
-            sub_input_sequence.append(input_)
+            label_ = label_ / 255.0
+            sub_input_sequence.append(label_)
             return sub_input_sequence, sub_label_sequence
 
         # NOTE: make subimage of LR and HR
@@ -125,6 +120,7 @@ def make_sub_data(data, config):
 
                 # Reshape the subinput and sublabel
                 sub_input = sub_input.reshape([config.image_size, config.image_size, config.c_dim])
+
                 # Normialize
                 sub_input =  sub_input / 255.0
 
@@ -142,8 +138,6 @@ def make_sub_data(data, config):
                 sub_label =  sub_label / 255.0
                 # Add to sequence
                 sub_label_sequence.append(sub_label)
-
-    # NOTE: The nx, ny can be ignore in train
 
     return sub_input_sequence, sub_label_sequence
 
@@ -180,20 +174,6 @@ def make_data_hf(input_, label_, config):
         hf.create_dataset('input', data=input_)
         hf.create_dataset('label', data=label_)
 
-def merge(images, size, c_dim):
-    """
-        images is the sub image set, merge it
-    """
-    h, w = images.shape[1], images.shape[2]
-    
-    img = np.zeros((h*size[0], w*size[1], c_dim))
-    for idx, image in enumerate(images):
-        i = idx % size[1]
-        j = idx // size[1]
-        img[j * h : j * h + h,i * w : i * w + w, :] = image
-        
-    return img
-
 def input_setup(config):
     """
         Read image files and make their sub-images and saved them as a h5 file format
@@ -211,6 +191,6 @@ def input_setup(config):
     arrinput = np.asarray(sub_input_sequence) # [?, 17, 17, 3]
     arrlabel = np.asarray(sub_label_sequence) # [?, 17 * scale , 17 * scale, 3]
     
-    print(arrinput.shape, arrlabel.shape)
+    print(arrinput.shape)
     make_data_hf(arrinput, arrlabel, config)
 
