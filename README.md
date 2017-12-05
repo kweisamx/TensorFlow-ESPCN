@@ -15,7 +15,7 @@
 python main.py
 ```
 
-if you want to see the flag 
+if you want to see all flag 
 ```
 python main.py -h
 ```
