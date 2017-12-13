@@ -59,6 +59,12 @@ def preprocess(path ,scale = 3):
     label_ = modcrop(img, scale)
     
     input_ = cv2.resize(label_,None,fx = 1.0/scale ,fy = 1.0/scale, interpolation = cv2.INTER_CUBIC) # Resize by scaling factor
+
+    kernel_size = (7, 7);
+    sigma = 3.0;
+    #input_ = cv2.GaussianBlur(input_, kernel_size, sigma);
+    #checkimage(input_)
+
     return input_, label_
 
 def prepare_data(dataset="Train",Input_img=""):
@@ -105,8 +111,9 @@ def make_sub_data(data, config):
             h, w = input_.shape # is grayscale
         
         if not config.is_train:
-            label_ = label_ / 255.0
-            sub_input_sequence.append(label_)
+            input_ = imread(data[i])
+            input_ = input_ / 255.0
+            sub_input_sequence.append(input_)
             return sub_input_sequence, sub_label_sequence
 
         # NOTE: make subimage of LR and HR
@@ -192,5 +199,6 @@ def input_setup(config):
     arrlabel = np.asarray(sub_label_sequence) # [?, 17 * scale , 17 * scale, 3]
     
     print(arrinput.shape)
+    print(arrlabel.shape)
     make_data_hf(arrinput, arrlabel, config)
 

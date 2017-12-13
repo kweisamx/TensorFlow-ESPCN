@@ -9,9 +9,11 @@ from utils import (
     read_data,
     checkimage,
     imsave,
+    imread,
     load_data,
     preprocess,
 )
+import cv2
 class ESPCN(object):
 
     def __init__(self,
@@ -44,7 +46,7 @@ class ESPCN(object):
                 so here we don't need do preprocess, so we set input as the same with preprocess output
             '''
             data = load_data(self.is_train, self.test_img)
-            _ , input_ = preprocess(data[0])       
+            input_ = imread(data[0])       
             self.h, self.w, c = input_.shape
             self.images = tf.placeholder(tf.float32, [None, self.h, self.w, self.c_dim], name='images')
             self.labels = tf.placeholder(tf.float32, [None, self.h * self.scale, self.w * self.scale, self.c_dim], name='labels')
@@ -153,7 +155,7 @@ class ESPCN(object):
             To load the checkpoint use to test or pretrain
         """
         print("\nReading Checkpoints.....\n\n")
-        model_dir = "%s_%s" % ("espcn", self.image_size)# give the model name by label_size
+        model_dir = "%s_%s_%s" % ("espcn", self.image_size,self.scale)# give the model name by label_size
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
         
@@ -169,7 +171,7 @@ class ESPCN(object):
             To save the checkpoint use to test or pretrain
         """
         model_name = "ESPCN.model"
-        model_dir = "%s_%s" % ("espcn", self.image_size)
+        model_dir = "%s_%s_%s" % ("espcn", self.image_size,self.scale)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         if not os.path.exists(checkpoint_dir):
