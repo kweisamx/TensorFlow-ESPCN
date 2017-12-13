@@ -13,7 +13,6 @@ from utils import (
     load_data,
     preprocess,
 )
-import cv2
 class ESPCN(object):
 
     def __init__(self,

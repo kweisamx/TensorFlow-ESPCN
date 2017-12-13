@@ -199,6 +199,5 @@ def input_setup(config):
     arrlabel = np.asarray(sub_label_sequence) # [?, 17 * scale , 17 * scale, 3]
     
     print(arrinput.shape)
-    print(arrlabel.shape)
     make_data_hf(arrinput, arrlabel, config)
 
