@@ -13,6 +13,7 @@ from utils import (
     load_data,
     preprocess,
 )
+from PSNR import psnr
 class ESPCN(object):
 
     def __init__(self,
@@ -115,6 +116,8 @@ class ESPCN(object):
         data_dir = checkpoint_dir(config)
         
         input_, label_ = read_data(data_dir)
+
+        print(input_.shape, label_.shape)
 
         # Stochastic gradient descent with the standard backpropagation
         self.train_op = tf.train.AdamOptimizer(learning_rate=config.learning_rate).minimize(self.loss)
