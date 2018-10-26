@@ -32,13 +32,13 @@ def modcrop(img, scale =3):
     # Check the image is grayscale
     if len(img.shape) ==3:
         h, w, _ = img.shape
-        h = (h / scale) * scale
-        w = (w / scale) * scale
+        h = int(h / scale) * scale
+        w = int(w / scale) * scale
         img = img[0:h, 0:w, :]
     else:
         h, w = img.shape
-        h = (h / scale) * scale
-        w = (w / scale) * scale
+        h = int(h / scale) * scale
+        w = int(w / scale) * scale
         img = img[0:h, 0:w]
     return img
 
